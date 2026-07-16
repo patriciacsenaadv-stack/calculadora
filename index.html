@@ -88,7 +88,13 @@
         <option value="claude-sonnet-4-5">Sonnet — mais preciso (recomendado)</option>
         <option value="claude-haiku-4-5">Haiku — mais econômico</option>
       </select></div>
+    <div><label>Tipo de peça</label>
+      <select id="modoIA">
+        <option value="cumprimento">Cumprimento de sentença — fiel ao título</option>
+        <option value="inicial">Petição inicial — análise das verbas</option>
+      </select></div>
   </div>
+  <p class="aviso"><b>Cumprimento:</b> a IA copia exclusivamente o que está no dispositivo do título executivo, sem nenhuma inferência jurídica — cada parcela vem com o trecho do dispositivo que a ampara, e parcela sem amparo gera aviso vermelho. <b>Petição inicial:</b> a IA faz a análise jurídica completa (períodos, prescrição quinquenal, verbas discutíveis com alerta) para montar a planilha do valor da causa.</p>
   <p class="aviso">Crie sua chave em <b>console.anthropic.com</b> → API Keys. A chave nunca sai deste navegador (é enviada somente à API da Anthropic). Não use esta página em computador público.</p>
   <div class="dropzone" id="dropzone" onclick="document.getElementById('pdfInput').click()">
     Arraste aqui o PDF do processo (ou clique para escolher) — pode enviar mais de um arquivo
@@ -184,6 +190,7 @@
   <div id="resumo" class="resumo"></div>
   <div id="memorias"></div>
   <div class="criterios" id="criterios"></div>
+  <div class="criterios" id="obsPrint" style="display:none;border-color:#d9ccee;background:#faf5ff"></div>
 </div>
 </div>
 
@@ -303,6 +310,7 @@ function gerarSerie(){
 }
 function calcularUI(){
   const msg=document.getElementById('msgErro'); msg.textContent='';
+  const op=document.getElementById('obsPrint'); if(op){op.style.display='none'; op.innerHTML='';}
   try{
     const dataBase=document.getElementById('database').value;
     if(!dataBase) throw new Error('Informe a data-base do cálculo.');
@@ -451,25 +459,35 @@ async function lerPDFs(){
   return {texto, imagens, totalPags, pagsEscaneadas, truncado};
 }
 
-function promptExtracao(hoje){
-  return 'Você é assistente de cálculo judicial de um escritório de advocacia brasileiro (cumprimento de sentença contra a Fazenda Pública municipal — servidores/comissionados/contratados). Analise os autos fornecidos (texto extraído do PJe e eventuais páginas escaneadas como imagem) e monte o bloco de dados da calculadora.\n\n'+
-  'REGRAS DE EXTRAÇÃO:\n'+
-  '1. O título executivo (sentença + acórdão + decisão de embargos, o que for mais recente) comanda TUDO. Extraia somente verbas expressamente deferidas nele.\n'+
-  '2. Verbas e competências:\n'+
-  '   - Férias + 1/3: parcela = salário da época × 4/3 × (meses do período aquisitivo ÷ 12); competência = mês do FIM do período aquisitivo.\n'+
-  '   - 13º salário: parcela = salário × (meses ÷ 12); competência = dezembro do ano ou mês da rescisão. Só incluir se constar do título.\n'+
-  '   - FGTS: 8% da remuneração de cada mês; uma parcela por competência. Só se constar do título.\n'+
-  '   - Restituição de ISS: valor retido em cada mês; uma parcela por competência. Só se constar do título.\n'+
-  '3. Salários: procure nas fichas financeiras/contracheques (inclusive nas imagens). Se o processo indicar o salário na inicial ou no título, use-o. Se o salário variou, use o salário da época de cada parcela.\n'+
-  '4. Honorários sucumbenciais: só se fixados no título (percentual expresso). Contratuais: 30 por cento (padrão do escritório), salvo indicação diversa nos autos.\n'+
-  '5. dataBase = "'+hoje+'" (mês corrente).\n'+
-  '6. Respeite prescrição/limitações reconhecidas no título.\n'+
-  '7. Valores com 2 casas decimais, ponto como separador decimal.\n\n'+
-  'RESPONDA APENAS com um JSON válido, sem markdown, neste formato exato:\n'+
+function promptExtracao(hoje, modo){
+  const formato = 'RESPONDA APENAS com um JSON válido, sem markdown, neste formato exato:\n'+
   '{"processo":"...","exequente":"...","executado":"...","dataBase":"'+hoje+'","honContratuais":30,"honSucumbencia":0,\n'+
-  '"parcelas":[{"comp":"AAAA-MM","desc":"...","valor":0.00}],\n'+
+  '"parcelas":[{"comp":"AAAA-MM","desc":"...","valor":0.00,"fonte":"trecho literal do documento que ampara esta parcela"}],\n'+
   '"salariosIdentificados":[{"periodo":"...","valor":0.00,"fonte":"..."}],\n'+
-  '"alertas":["liste aqui TODA ambiguidade, dado ausente, conflito entre documentos, verba pedida mas não deferida, página ilegível, ou decisão que você tomou por inferência"]}';
+  '"alertas":["toda ambiguidade, dado ausente, conflito entre documentos, página ilegível ou decisão tomada"]}';
+  const comum = 'Fórmulas: férias+1/3 = salário da época × 4/3 × (meses ÷ 12), competência = mês do FIM do período aquisitivo; 13º = salário × (meses ÷ 12), competência = dezembro ou mês da rescisão; FGTS = 8% da remuneração de cada mês, uma parcela por competência; restituição de ISS = valor retido em cada mês, uma parcela por competência. Salários: procure nas fichas financeiras/contracheques (inclusive nas imagens); se variaram, use o salário da época de cada parcela. dataBase = "'+hoje+'". Valores com 2 casas decimais, ponto como separador decimal.\n\n';
+  if (modo === 'inicial') {
+    return 'Você é assistente jurídico de um escritório brasileiro montando a PLANILHA DE CÁLCULO que instruirá uma PETIÇÃO INICIAL contra a Fazenda Pública municipal (servidor/comissionado/contratado). Aqui a análise jurídica é bem-vinda: identifique, a partir dos documentos (contratos, portarias, fichas financeiras, contracheques), TODAS as verbas postuláveis.\n\n'+
+    'REGRAS:\n'+
+    '1. Levante os vínculos e períodos trabalhados; aponte férias+1/3 não gozadas/não pagas por período aquisitivo; 13º não pago (ALERTE que a jurisprudência diverge para contratado temporário); FGTS 8% se contratação temporária/irregular nula (Tema 916/STF — ALERTE que não há multa de 40%); ISS retido indevidamente (repetição de indébito); diferenças salariais evidenciadas.\n'+
+    '2. Prescrição quinquenal (art. 1º do Decreto 20.910/32) — aplique a teoria da ACTIO NATA, considerando ajuizamento no mês corrente ("'+hoje+'"):\n'+
+    '   a) Férias + 1/3 e demais verbas indenizatórias devidas na rescisão (comissionado/contratado): o prazo conta da EXONERAÇÃO/término do vínculo, pois só aí nasce a pretensão indenizatória (jurisprudência do STJ e das Turmas Recursais do TJRN). Se o vínculo terminou há MENOS de 5 anos, TODOS os períodos aquisitivos daquele vínculo são exigíveis, mesmo os antigos. Se terminou há mais de 5 anos, a pretensão daquele vínculo está prescrita — ALERTE.\n'+
+    '   b) Verbas de trato sucessivo pagas (ou descontadas) mês a mês durante o vínculo (diferenças salariais, ISS retido, FGTS, 13º): Súmula 85/STJ — inclua apenas as parcelas dos últimos 5 anos.\n'+
+    '   c) Parcela limítrofe ou dúvida sobre a data da exoneração: inclua e ALERTE.\n'+
+    '3. Cada parcela deve ter "fonte" = documento e trecho que a amparam.\n'+
+    '4. honSucumbencia = 0 (fase de conhecimento).\n'+
+    '5. Toda inferência jurídica relevante deve constar de "alertas" para o advogado avaliar.\n\n'+
+    comum + formato;
+  }
+  return 'Você é assistente de CUMPRIMENTO DE SENTENÇA contra a Fazenda Pública municipal. Sua única função é transcrever fielmente o comando judicial em parcelas de cálculo.\n\n'+
+  'REGRA ABSOLUTA — FIDELIDADE AO TÍTULO:\n'+
+  '1. Localize o título executivo: sentença + acórdão + decisão de embargos de declaração, prevalecendo o DISPOSITIVO mais recente.\n'+
+  '2. COPIE exclusivamente as verbas e os períodos LISTADOS TEXTUALMENTE no dispositivo. É PROIBIDO incluir verba ou período que não esteja escrito nele, ainda que pareça juridicamente devido, pedido na inicial ou não prescrito pelo seu raciocínio. É PROIBIDO fazer qualquer inferência sobre prescrição: o dispositivo já a aplicou.\n'+
+  '3. Cada parcela DEVE ter o campo "fonte" com o trecho LITERAL do dispositivo que a ampara (copie a passagem). Se você não consegue apontar o trecho, a parcela NÃO EXISTE.\n'+
+  '4. Verba pedida na inicial e não contemplada no dispositivo: mencione APENAS em "alertas", nunca em "parcelas".\n'+
+  '5. Honorários sucumbenciais: apenas se fixados expressamente no título (percentual). Contratuais: 30, salvo indicação diversa nos autos.\n'+
+  '6. Competência das parcelas: o mês que decorre do próprio dispositivo (fim do período aquisitivo indicado). Em caso de dúvida entre dois meses defensáveis, escolha o mais conservador e ALERTE.\n\n'+
+  comum + formato;
 }
 
 async function extrair(){
@@ -478,11 +496,13 @@ async function extrair(){
   localStorage.setItem('anthropic_key', key);
   const modelo = document.getElementById('modelo').value;
   localStorage.setItem('modelo_ia', modelo);
+  const modo = document.getElementById('modoIA').value;
+  localStorage.setItem('modo_ia_peca', modo);
   const btn = document.getElementById('btnExtrair'); btn.disabled = true;
   document.getElementById('alertasIA').style.display='none';
   try{
     const {texto, imagens, totalPags, pagsEscaneadas, truncado} = await lerPDFs();
-    statusIA('Leitura concluída: '+totalPags+' páginas ('+pagsEscaneadas+' escaneadas, '+imagens.length+' enviadas como imagem'+(truncado?', texto truncado por tamanho':'')+').<br>Enviando para a IA ('+modelo+')…');
+    statusIA('Leitura concluída: '+totalPags+' páginas ('+pagsEscaneadas+' escaneadas, '+imagens.length+' enviadas como imagem'+(truncado?', texto truncado por tamanho':'')+').<br>Enviando para a IA ('+modelo+', modo '+(modo==='inicial'?'petição inicial':'cumprimento de sentença')+')…');
     const hoje = new Date().toISOString().slice(0,7);
     const content = [];
     for (const im of imagens) content.push({type:'image', source:{type:'base64', media_type:'image/jpeg', data:im.b64}});
@@ -490,7 +510,7 @@ async function extrair(){
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
       headers:{'x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','content-type':'application/json'},
-      body: JSON.stringify({model:modelo, max_tokens:8000, system:promptExtracao(hoje), messages:[{role:'user', content}]})
+      body: JSON.stringify({model:modelo, max_tokens:8000, system:promptExtracao(hoje, modo), messages:[{role:'user', content}]})
     });
     if (!resp.ok){
       const e = await resp.json().catch(()=>({}));
@@ -505,9 +525,20 @@ async function extrair(){
     importarJSON();
     const uso = j.usage ? ' · Tokens: '+j.usage.input_tokens.toLocaleString('pt-BR')+' entrada / '+j.usage.output_tokens.toLocaleString('pt-BR')+' saída' : '';
     statusIA('✓ Extração concluída e cálculo executado. <b>Confira o demonstrativo abaixo antes de protocolar.</b>'+uso);
+    let itens = (dados.alertas||[]).map(a=>({t:a, grave:false}));
+    const semFonte = (dados.parcelas||[]).filter(p=>!p.fonte||!String(p.fonte).trim());
+    if (modo==='cumprimento' && semFonte.length)
+      itens.unshift({t:'⚠ '+semFonte.length+' parcela(s) SEM trecho do dispositivo que as ampare — risco de excesso de execução, confira e exclua se indevidas: '+semFonte.map(p=>(p.desc||'')+' ('+p.comp+', R$ '+fmt(Number(p.valor))+')').join('; '), grave:true});
+    itens = itens.concat((dados.salariosIdentificados||[]).map(s=>({t:'Salário identificado: '+s.periodo+' → R$ '+fmt(Number(s.valor))+' ('+(s.fonte||'')+')', grave:false})));
+    const fontes = (dados.parcelas||[]).filter(p=>p.fonte&&String(p.fonte).trim()).map(p=>({t:'Parcela '+mesBR(p.comp)+' (R$ '+fmt(Number(p.valor))+') — amparo: “'+p.fonte+'”', grave:false}));
+    const bloco = arr => '<ul>'+arr.map(a=>'<li'+(a.grave?' style="color:var(--erro);font-weight:700"':'')+'>'+a.t+'</li>').join('')+'</ul>';
     const al = document.getElementById('alertasIA');
-    const itens = (dados.alertas||[]).concat((dados.salariosIdentificados||[]).map(s=>'Salário identificado: '+s.periodo+' → R$ '+fmt(Number(s.valor))+' ('+(s.fonte||'')+')'));
-    if (itens.length){ al.style.display='block'; al.innerHTML='<b>Observações da extração:</b><ul>'+itens.map(a=>'<li>'+a+'</li>').join('')+'</ul>'; }
+    if (itens.length){ al.style.display='block'; al.innerHTML='<b>Observações da extração:</b>'+bloco(itens); }
+    const op = document.getElementById('obsPrint');
+    op.style.display='block';
+    op.innerHTML = '<b>Observações da extração ('+(modo==='inicial'?'petição inicial — análise das verbas':'cumprimento de sentença — fidelidade ao título')+'):</b>'
+      + (itens.length?bloco(itens):'<p>Nenhum alerta.</p>')
+      + (fontes.length?'<b style="display:block;margin-top:6px">Amparo de cada parcela:</b>'+bloco(fontes):'');
   }catch(e){
     statusIA('<span style="color:var(--erro)">Falha: '+e.message+'</span>');
   }finally{ btn.disabled = !arquivosPDF.length; }
@@ -516,6 +547,7 @@ async function extrair(){
 // ================== INICIALIZAÇÃO ==================
 document.getElementById('apiKey').value = localStorage.getItem('anthropic_key')||'';
 const modeloSalvo = localStorage.getItem('modelo_ia'); if (modeloSalvo) document.getElementById('modelo').value = modeloSalvo;
+const modoSalvo = localStorage.getItem('modo_ia_peca'); if (modoSalvo) document.getElementById('modoIA').value = modoSalvo;
 if (!document.getElementById('database').value) document.getElementById('database').value = new Date().toISOString().slice(0,7);
 cobertura(); autoteste(); addParcela();
 </script>
