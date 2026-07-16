@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de Cumprimento de Sentença — Fazenda Pública</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{--azul:#1a3a5c;--azul2:#2d5f8a;--cinza:#f4f6f8;--borda:#d6dde4;--ok:#1d7a3e;--erro:#b02a2a;--ia:#5b3a8c;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:var(--cinza);color:#222;font-size:14px;line-height:1.5;}
+  .wrap{max-width:1080px;margin:0 auto;padding:24px 16px 60px;}
+  header{background:var(--azul);color:#fff;padding:22px 26px;border-radius:10px 10px 0 0;}
+  header h1{font-size:20px;font-weight:600;}
+  header p{opacity:.85;font-size:12.5px;margin-top:4px;}
+  .card{background:#fff;border:1px solid var(--borda);border-top:none;padding:22px 26px;}
+  .card:last-of-type{border-radius:0 0 10px 10px;}
+  h2{font-size:15px;color:var(--azul);margin-bottom:12px;border-bottom:2px solid var(--azul);padding-bottom:5px;display:flex;justify-content:space-between;align-items:center;}
+  .card.ia h2{color:var(--ia);border-color:var(--ia);}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+  label{font-size:11.5px;font-weight:600;color:#456;display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.03em;}
+  input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--borda);border-radius:6px;font-size:14px;font-family:inherit;}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--azul2);border-color:var(--azul2);}
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13.5px;}
+  th{background:var(--azul);color:#fff;padding:7px 9px;text-align:left;font-weight:600;font-size:12px;}
+  td{padding:6px 9px;border-bottom:1px solid var(--borda);}
+  td input{padding:6px 8px;font-size:13.5px;}
+  tr:nth-child(even) td{background:#fafbfc;}
+  .num{text-align:right;font-variant-numeric:tabular-nums;}
+  .btn{background:var(--azul);color:#fff;border:none;padding:9px 18px;border-radius:6px;font-size:13.5px;font-weight:600;cursor:pointer;margin:4px 6px 4px 0;}
+  .btn:hover{background:var(--azul2);}
+  .btn.sec{background:#fff;color:var(--azul);border:1.5px solid var(--azul);}
+  .btn.ia{background:var(--ia);}
+  .btn.ia:hover{background:#7a52b5;}
+  .btn.mini{padding:3px 10px;font-size:12px;background:#eee;color:#a00;border:1px solid #ccc;}
+  .btn.big{font-size:16px;padding:13px 34px;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .badge{font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:12px;text-transform:none;letter-spacing:0;}
+  .badge.ok{background:#e2f3e8;color:var(--ok);}
+  .badge.err{background:#fbe4e4;color:var(--erro);}
+  .totais{background:var(--azul);color:#fff;font-weight:700;}
+  .totais td{border:none;background:var(--azul) !important;color:#fff;}
+  .resumo{margin-top:14px;background:#eef3f8;border:1px solid var(--borda);border-radius:8px;padding:14px 18px;}
+  .resumo .linha{display:flex;justify-content:space-between;padding:3px 0;font-size:14px;}
+  .resumo .linha.destaque{font-size:17px;font-weight:700;color:var(--azul);border-top:2px solid var(--azul);margin-top:6px;padding-top:8px;}
+  details{margin-top:6px;font-size:12.5px;}
+  summary{cursor:pointer;color:var(--azul2);font-weight:600;}
+  .memoria{background:#fafbfc;border:1px solid var(--borda);border-radius:6px;padding:8px 12px;margin-top:6px;column-width:190px;column-gap:20px;font-variant-numeric:tabular-nums;}
+  .criterios{font-size:12px;color:#444;background:#fffbe8;border:1px solid #eadfa8;border-radius:8px;padding:12px 16px;margin-top:14px;}
+  .criterios b{color:var(--azul);}
+  .aviso{font-size:12px;color:#666;margin-top:8px;}
+  .erro{color:var(--erro);font-weight:600;margin-top:8px;}
+  .gerador{background:#f0f5fa;border:1px dashed var(--azul2);border-radius:8px;padding:12px 16px;margin-top:12px;}
+  .gerador .grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));align-items:end;}
+  .dropzone{border:2.5px dashed var(--ia);border-radius:10px;padding:26px;text-align:center;color:var(--ia);font-weight:600;cursor:pointer;margin-top:10px;background:#faf7ff;}
+  .dropzone.arrastando{background:#efe6ff;}
+  .status{font-size:13px;margin-top:10px;padding:10px 14px;border-radius:8px;background:#f2eefa;border:1px solid #d9ccee;display:none;}
+  .alertas{margin-top:10px;font-size:13px;background:#fff4e5;border:1px solid #ecd3a8;border-radius:8px;padding:10px 14px;display:none;}
+  .alertas li{margin-left:18px;margin-top:3px;}
+  @media print{
+    body{background:#fff;font-size:11.5px;}
+    .no-print, .btn, .gerador{display:none !important;}
+    .card{border:none;padding:8px 0;}
+    header{background:#fff;color:#000;border-bottom:2.5px solid #000;border-radius:0;padding:0 0 8px;}
+    header p{color:#333;}
+    h2{color:#000;border-color:#000;}
+    th{background:#ddd;color:#000;-webkit-print-color-adjust:exact;}
+    .totais td{background:#ddd !important;color:#000 !important;font-weight:700;-webkit-print-color-adjust:exact;}
+    details{display:block;} summary{display:none;} .memoria{column-width:160px;}
+    .resumo{border:1.5px solid #000;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Calculadora de Cumprimento de Sentença — Fazenda Pública</h1>
+  <p>Metodologia ProjefWeb (Manual de Cálculos da Justiça Federal, ed. 2022) · IPCA-E até 11/2021 + Selic a partir de 12/2021 (EC 113/2021, art. 3º) · Índices oficiais BACEN/SGS</p>
+</header>
+
+<div class="card ia no-print">
+  <h2>Modo IA — enviar o processo e preencher tudo automaticamente</h2>
+  <div class="grid">
+    <div style="grid-column:span 2"><label>Chave de API Anthropic (fica salva só neste navegador)</label>
+      <input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off"></div>
+    <div><label>Modelo</label>
+      <select id="modelo">
+        <option value="claude-sonnet-4-5">Sonnet — mais preciso (recomendado)</option>
+        <option value="claude-haiku-4-5">Haiku — mais econômico</option>
+      </select></div>
+  </div>
+  <p class="aviso">Crie sua chave em <b>console.anthropic.com</b> → API Keys. A chave nunca sai deste navegador (é enviada somente à API da Anthropic). Não use esta página em computador público.</p>
+  <div class="dropzone" id="dropzone" onclick="document.getElementById('pdfInput').click()">
+    Arraste aqui o PDF do processo (ou clique para escolher) — pode enviar mais de um arquivo
+    <input id="pdfInput" type="file" accept="application/pdf" multiple style="display:none" onchange="arquivosEscolhidos(this.files)">
+  </div>
+  <div id="listaArquivos" class="aviso"></div>
+  <button class="btn ia" id="btnExtrair" onclick="extrair()" disabled>Extrair dados e calcular</button>
+  <div class="status" id="statusIA"></div>
+  <div class="alertas" id="alertasIA"></div>
+</div>
+
+<div class="card no-print">
+  <h2>Verificação do motor <span id="selo" class="badge">…</span></h2>
+  <p class="aviso">Ao abrir, o motor é automaticamente testado contra 3 cálculos reais do ProjefWeb homologados nos autos (proc. 0801749-30, 0803086-54 e 0801481-73 / 2025.8.20.5104). Só utilize se o selo estiver verde.</p>
+  <p class="aviso">Cobertura de índices: IPCA-E (IPCA-15/IBGE) 09/2017 a 11/2021 (período encerrado — não requer atualização) · Selic <b id="cobertura"></b>.
+  <button class="btn sec" style="margin-left:10px" onclick="atualizarSelic()">Atualizar Selic (API BACEN)</button><span id="atualizacao"></span></p>
+</div>
+
+<div class="card no-print">
+  <h2>Importar / exportar dados do processo</h2>
+  <p class="aviso">O modo IA preenche este bloco automaticamente. Também é possível colar um bloco gerado no chat do assistente e clicar em <b>Importar</b>. <b>Exportar</b> gera o bloco do que está preenchido (para arquivar junto ao processo).</p>
+  <textarea id="jsonBox" rows="5" style="margin-top:8px;font-family:Consolas,monospace;font-size:12px" placeholder='{"processo":"...","exequente":"...","dataBase":"2026-07","honContratuais":30,"parcelas":[{"comp":"2021-12","desc":"Férias + 1/3","valor":1933.33}]}'></textarea>
+  <button class="btn" onclick="importarJSON()">Importar e calcular</button>
+  <button class="btn sec" onclick="exportarJSON()">Exportar</button>
+  <button class="btn sec" onclick="limparTudo()">Limpar tudo</button>
+  <span id="msgImport" class="erro"></span>
+</div>
+
+<div class="card">
+  <h2>1. Dados do processo</h2>
+  <div class="grid">
+    <div><label>Nº do processo</label><input id="proc" placeholder="0000000-00.0000.8.20.0000"></div>
+    <div><label>Exequente</label><input id="exequente" placeholder="Nome do cliente"></div>
+    <div><label>Executado</label><input id="executado" value="MUNICÍPIO DE JOÃO CÂMARA"></div>
+    <div><label>Data-base do cálculo (mês/ano)</label><input id="database" type="month"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>2. Parcelas (valores originários)</h2>
+  <table id="tabParcelas">
+    <thead><tr><th>Competência (vencimento)</th><th>Descrição</th><th class="num">Valor originário (R$)</th><th class="no-print"></th></tr></thead>
+    <tbody id="parcelasBody"></tbody>
+  </table>
+  <button class="btn sec no-print" onclick="addParcela()">+ Adicionar parcela</button>
+  <div class="gerador no-print">
+    <b style="color:var(--azul);font-size:13px">Gerador — verba anual (férias + 1/3 · 13º salário)</b>
+    <p class="aviso">Férias: parcela = salário × 4/3 × (meses/12). 13º: parcela = salário × (meses/12). Competência = data em que a obrigação deveria ter sido cumprida (fim do período aquisitivo; 13º: dezembro do ano ou mês da rescisão). <b>13º de contratado: incluir somente se constar do título executivo — jurisprudência divergente.</b></p>
+    <div class="grid" style="margin-top:8px">
+      <div><label>Verba</label><select id="gVerba"><option value="ferias">Férias + terço (× 4/3)</option><option value="13">13º salário (× 1)</option></select></div>
+      <div><label>Salário-base (R$)</label><input id="gSalario" placeholder="1.450,00"></div>
+      <div><label>Meses do período (1–12)</label><input id="gMeses" type="number" min="1" max="12" value="12"></div>
+      <div><label>Competência</label><input id="gComp" type="month"></div>
+      <div><label>Rótulo (opcional)</label><input id="gDesc" placeholder="Per. aquisitivo 2021"></div>
+      <div><button class="btn" onclick="gerarFerias()">Gerar parcela</button></div>
+    </div>
+  </div>
+  <div class="gerador no-print">
+    <b style="color:var(--azul);font-size:13px">Gerador — série mensal (FGTS, restituição de ISS, diferenças salariais)</b>
+    <p class="aviso">Gera uma parcela por competência no período. <b>FGTS:</b> valor-base = remuneração mensal, percentual = 8. <b>ISS descontado indevidamente:</b> valor-base = valor mensal retido, percentual = 100. Se a remuneração variou no período, gere um bloco por faixa salarial.</p>
+    <div class="grid" style="margin-top:8px">
+      <div><label>Rótulo</label><select id="sTipo"><option value="FGTS (8%)">FGTS (8%)</option><option value="Restituição ISS retido indevidamente">Restituição ISS</option><option value="Diferença salarial">Diferença salarial</option><option value="Outra verba mensal">Outra verba mensal</option></select></div>
+      <div><label>Competência inicial</label><input id="sIni" type="month"></div>
+      <div><label>Competência final</label><input id="sFim" type="month"></div>
+      <div><label>Valor-base mensal (R$)</label><input id="sValor" placeholder="1.450,00"></div>
+      <div><label>Percentual (%)</label><input id="sPct" value="100"></div>
+      <div><button class="btn" onclick="gerarSerie()">Gerar série</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>3. Honorários</h2>
+  <div class="grid">
+    <div><label>Contratuais — destaque (%)</label><input id="honC" value="30"></div>
+    <div><label>Sucumbenciais sobre a condenação (%)</label><input id="honS" value="0"></div>
+  </div>
+  <p class="aviso">Sucumbenciais: preencher somente se fixados no título (ex.: acórdão que condenou o recorrente vencido — art. 55 da Lei 9.099/95). Base: soma das parcelas atualizadas (Súmula 111/STJ, quando aplicável).</p>
+</div>
+
+<div class="card no-print" style="text-align:center">
+  <button class="btn big" onclick="calcularUI()">CALCULAR</button>
+  <button class="btn sec big" onclick="window.print()">Imprimir / PDF</button>
+  <div id="msgErro" class="erro"></div>
+</div>
+
+<div class="card" id="resultado" style="display:none">
+  <h2>Demonstrativo de parcelas</h2>
+  <table>
+    <thead><tr><th>#</th><th>Comp.</th><th>Descrição</th><th class="num">Principal (A)</th><th class="num">Coef. IPCA-E (B)</th><th class="num">Corrigido (C=A×B)</th><th class="num">Selic % (F)</th><th class="num">Selic R$ (G=C×F)</th><th class="num">Total (C+G)</th></tr></thead>
+    <tbody id="resBody"></tbody>
+  </table>
+  <div id="resumo" class="resumo"></div>
+  <div id="memorias"></div>
+  <div class="criterios" id="criterios"></div>
+</div>
+</div>
+
+<script>
+// ================== ÍNDICES OFICIAIS (BACEN/SGS) ==================
+const IPCA = {"2017-09":0.11,"2017-10":0.34,"2017-11":0.32,"2017-12":0.35,"2018-01":0.39,"2018-02":0.38,"2018-03":0.10,"2018-04":0.21,"2018-05":0.14,"2018-06":1.11,"2018-07":0.64,"2018-08":0.13,"2018-09":0.09,"2018-10":0.58,"2018-11":0.19,"2018-12":-0.16,"2019-01":0.30,"2019-02":0.34,"2019-03":0.54,"2019-04":0.72,"2019-05":0.35,"2019-06":0.06,"2019-07":0.09,"2019-08":0.08,"2019-09":0.09,"2019-10":0.09,"2019-11":0.14,"2019-12":1.05,"2020-01":0.71,"2020-02":0.22,"2020-03":0.02,"2020-04":-0.01,"2020-05":-0.59,"2020-06":0.02,"2020-07":0.30,"2020-08":0.23,"2020-09":0.45,"2020-10":0.94,"2020-11":0.81,"2020-12":1.06,"2021-01":0.78,"2021-02":0.48,"2021-03":0.93,"2021-04":0.60,"2021-05":0.44,"2021-06":0.83,"2021-07":0.72,"2021-08":0.89,"2021-09":1.14,"2021-10":1.20,"2021-11":1.17};
+let SELIC = {"2021-12":0.77,"2022-01":0.73,"2022-02":0.76,"2022-03":0.93,"2022-04":0.83,"2022-05":1.03,"2022-06":1.02,"2022-07":1.03,"2022-08":1.17,"2022-09":1.07,"2022-10":1.02,"2022-11":1.02,"2022-12":1.12,"2023-01":1.12,"2023-02":0.92,"2023-03":1.17,"2023-04":0.92,"2023-05":1.12,"2023-06":1.07,"2023-07":1.07,"2023-08":1.14,"2023-09":0.97,"2023-10":1.00,"2023-11":0.92,"2023-12":0.89,"2024-01":0.97,"2024-02":0.80,"2024-03":0.83,"2024-04":0.89,"2024-05":0.83,"2024-06":0.79,"2024-07":0.91,"2024-08":0.87,"2024-09":0.84,"2024-10":0.93,"2024-11":0.79,"2024-12":0.93,"2025-01":1.01,"2025-02":0.99,"2025-03":0.96,"2025-04":1.06,"2025-05":1.14,"2025-06":1.10,"2025-07":1.28,"2025-08":1.16,"2025-09":1.22,"2025-10":1.28,"2025-11":1.05,"2025-12":1.22,"2026-01":1.16,"2026-02":1.00,"2026-03":1.21,"2026-04":1.09,"2026-05":1.07,"2026-06":0.70};
+
+// ================== MOTOR DE CÁLCULO (validado contra ProjefWeb) ==================
+const r2 = x => Math.round(x * 100) / 100;           // arredondamento idêntico ao ProjefWeb (float)
+const r6 = x => Math.round(x * 1e6 + 1e-6) / 1e6;
+const cmp = (a,b) => a < b ? -1 : a > b ? 1 : 0;
+const MARCO = '2021-12';                              // EC 113/2021: Selic a partir de 12/2021
+function addM(ym,n){let[y,m]=ym.split('-').map(Number);m+=n;while(m>12){m-=12;y++;}while(m<1){m+=12;y--;}return y.toString().padStart(4,'0')+'-'+m.toString().padStart(2,'0');}
+function* months(a,b){let c=a;while(cmp(c,b)<=0){yield c;c=addM(c,1);}}
+function coefIPCAE(pm){
+  if (cmp(pm,MARCO)>=0) return {coef:1, det:[]};
+  let f=1, det=[];
+  for (const m of months(pm, addM(MARCO,-1))){
+    if (!(m in IPCA)) throw new Error('IPCA-E indisponível para '+m+' (parcelas anteriores a 09/2017 exigem cadeia TR — não suportado nesta versão).');
+    f *= 1 + IPCA[m]/100; det.push([m, IPCA[m]]);
+  }
+  return {coef:r6(f), det};
+}
+function selicPct(pm, db){
+  const ini = cmp(pm,MARCO)<0 ? MARCO : pm;
+  let cents=0, det=[];
+  for (const m of months(ini, addM(db,-1))){
+    if (!(m in SELIC)) throw new Error('Selic indisponível para '+m+'. Clique em "Atualizar Selic (API BACEN)".');
+    cents += Math.round(SELIC[m]*100); det.push([m, SELIC[m]]);
+  }
+  return {pct:cents/100, det};
+}
+function calcular({parcelas, dataBase, honContratuais=0, honSucumbencia=0}){
+  const rows = parcelas.map(p=>{
+    const {coef, det:detC} = coefIPCAE(p.comp);
+    const C = r2(p.valor*coef);
+    const {pct:F, det:detS} = selicPct(p.comp, dataBase);
+    const S = r2(C*F/100);
+    return {...p, coef, corrigido:C, selicPct:F, selicVal:S, total:r2(C+S), detC, detS};
+  });
+  const tCorr=r2(rows.reduce((a,r)=>a+r.corrigido,0));
+  const tSelic=r2(rows.reduce((a,r)=>a+r.selicVal,0));
+  const tGeral=r2(tCorr+tSelic);
+  const mk = pct => { const fx=pct/100, t=r2(tGeral*fx), c=r2(tCorr*fx); return {corr:c, selic:r2(t-c), total:t}; };
+  const hc = honContratuais>0 ? mk(honContratuais) : null;
+  const hs = honSucumbencia>0 ? mk(honSucumbencia) : null;
+  return {rows,tCorr,tSelic,tGeral,hc,hs,
+    liquido: hc?{corr:r2(tCorr-hc.corr),selic:r2(tSelic-hc.selic),total:r2(tGeral-hc.total)}:null,
+    totalConta: r2(tGeral+(hs?hs.total:0))};
+}
+
+// ================== AUTOTESTE (3 cálculos reais ProjefWeb) ==================
+function autoteste(){
+  const eq=(a,b)=>Math.abs(a-b)<0.005;
+  const casos=[
+   {inp:{dataBase:'2026-04',honContratuais:30,honSucumbencia:10,parcelas:[{comp:'2020-08',valor:161.11},{comp:'2021-12',valor:1933.33},{comp:'2022-12',valor:1933.33},{comp:'2023-12',valor:1933.33},{comp:'2024-12',valor:966.67}]},
+    chk:r=>eq(r.tGeral,9551.58)&&eq(r.tCorr,6949.43)&&eq(r.tSelic,2602.15)&&eq(r.hc.total,2865.47)&&eq(r.hc.selic,780.64)&&eq(r.hs.total,955.16)&&eq(r.totalConta,10506.74)&&eq(r.rows[0].corrigido,182.77)&&eq(r.rows[0].coef,1.134440)&&eq(r.rows[1].selicVal,1005.91)},
+   {inp:{dataBase:'2026-05',honContratuais:30,parcelas:[{comp:'2020-12',valor:3666.67},{comp:'2024-10',valor:7219.51}]},
+    chk:r=>eq(r.tGeral,14922.15)&&eq(r.rows[0].coef,1.107304)&&eq(r.rows[0].selicVal,2156.74)&&eq(r.hc.total,4476.64)&&eq(r.liquido.total,10445.51)},
+   {inp:{dataBase:'2026-05',honContratuais:30,parcelas:[{comp:'2022-01',valor:1616},{comp:'2023-01',valor:1760},{comp:'2024-01',valor:1882.67},{comp:'2024-10',valor:1412}]},
+    chk:r=>eq(r.tGeral,9055.13)&&eq(r.tSelic,2384.46)&&eq(r.rows[0].selicVal,845.98)&&eq(r.hc.total,2716.54)},
+  ];
+  try{
+    const ok = casos.every(c=>c.chk(calcular(c.inp)));
+    const selo=document.getElementById('selo');
+    selo.textContent = ok?'✓ validado — 3 casos reais reproduzidos centavo a centavo':'✗ FALHA NO AUTOTESTE — não utilizar';
+    selo.className = 'badge '+(ok?'ok':'err');
+  }catch(e){
+    const selo=document.getElementById('selo');
+    selo.textContent='✗ erro: '+e.message; selo.className='badge err';
+  }
+}
+
+// ================== INTERFACE ==================
+const fmt = v => v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtC = v => v.toLocaleString('pt-BR',{minimumFractionDigits:6,maximumFractionDigits:6});
+const parseBR = s => { s=(s||'').toString().trim().replace(/\.(?=\d{3})/g,'').replace(',','.'); const v=parseFloat(s); return isNaN(v)?0:v; };
+const mesBR = ym => ym.split('-')[1]+'/'+ym.split('-')[0];
+
+function addParcela(comp='',desc='',valor=''){
+  const tb=document.getElementById('parcelasBody');
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><input type="month" class="pComp" value="${comp}"></td>
+    <td><input class="pDesc" value="${desc}" placeholder="Ex.: Férias + 1/3 — per. aquisitivo 2021"></td>
+    <td><input class="pVal num" value="${valor}" placeholder="0,00"></td>
+    <td class="no-print"><button class="btn mini" onclick="this.closest('tr').remove()">×</button></td>`;
+  tb.appendChild(tr);
+}
+function gerarFerias(){
+  const sal=parseBR(document.getElementById('gSalario').value);
+  const meses=parseInt(document.getElementById('gMeses').value)||12;
+  const comp=document.getElementById('gComp').value;
+  const verba=document.getElementById('gVerba').value;
+  if(!sal||!comp){alert('Informe salário e competência.');return;}
+  const fator = verba==='13' ? 1 : 4/3;
+  const nome = verba==='13' ? `13º salário (${meses}/12)` : `Férias + 1/3 (${meses}/12)`;
+  const valor=r2(sal*fator*(meses/12));
+  const rot=document.getElementById('gDesc').value||('per. aquisitivo até '+mesBR(comp));
+  addParcela(comp, `${nome} — ${rot}`, fmt(valor));
+  document.getElementById('gDesc').value='';
+}
+function gerarSerie(){
+  const tipo=document.getElementById('sTipo').value;
+  const ini=document.getElementById('sIni').value, fim=document.getElementById('sFim').value;
+  const base=parseBR(document.getElementById('sValor').value);
+  const pct=parseBR(document.getElementById('sPct').value)||100;
+  if(!ini||!fim||!base){alert('Informe período e valor-base.');return;}
+  if(cmp(ini,fim)>0){alert('Competência inicial posterior à final.');return;}
+  const valor=r2(base*pct/100);
+  let n=0;
+  for(const m of months(ini,fim)){ addParcela(m, `${tipo} — ${mesBR(m)}`, fmt(valor)); n++; }
+  document.querySelectorAll('#parcelasBody tr').forEach(tr=>{
+    if(!tr.querySelector('.pComp').value && !parseBR(tr.querySelector('.pVal').value)) tr.remove();
+  });
+  alert(n+' parcelas geradas ('+tipo+', R$ '+fmt(valor)+'/mês).');
+}
+function calcularUI(){
+  const msg=document.getElementById('msgErro'); msg.textContent='';
+  try{
+    const dataBase=document.getElementById('database').value;
+    if(!dataBase) throw new Error('Informe a data-base do cálculo.');
+    const parcelas=[...document.querySelectorAll('#parcelasBody tr')].map(tr=>({
+      comp:tr.querySelector('.pComp').value, desc:tr.querySelector('.pDesc').value,
+      valor:parseBR(tr.querySelector('.pVal').value)})).filter(p=>p.comp&&p.valor>0);
+    if(!parcelas.length) throw new Error('Inclua ao menos uma parcela.');
+    for(const p of parcelas) if(cmp(p.comp,dataBase)>0) throw new Error('Parcela '+mesBR(p.comp)+' posterior à data-base.');
+    const honContratuais=parseBR(document.getElementById('honC').value);
+    const honSucumbencia=parseBR(document.getElementById('honS').value);
+    const R=calcular({parcelas,dataBase,honContratuais,honSucumbencia});
+    render(R,dataBase,honContratuais,honSucumbencia);
+  }catch(e){ msg.textContent=e.message; document.getElementById('resultado').style.display='none'; }
+}
+function render(R,db,hcPct,hsPct){
+  document.getElementById('resultado').style.display='block';
+  document.getElementById('resBody').innerHTML =
+    R.rows.map((r,i)=>`<tr><td>${i+1}</td><td>${mesBR(r.comp)}</td><td>${r.desc||''}</td>
+      <td class="num">${fmt(r.valor)}</td><td class="num">${r.coef===1?'1,000000':fmtC(r.coef)}</td>
+      <td class="num">${fmt(r.corrigido)}</td><td class="num">${fmt(r.selicPct)}%</td>
+      <td class="num">${fmt(r.selicVal)}</td><td class="num"><b>${fmt(r.total)}</b></td></tr>`).join('')
+    + `<tr class="totais"><td colspan="3">TOTAIS</td><td class="num">${fmt(R.rows.reduce((a,r)=>a+r.valor,0))}</td><td></td>
+      <td class="num">${fmt(R.tCorr)}</td><td></td><td class="num">${fmt(R.tSelic)}</td><td class="num">${fmt(R.tGeral)}</td></tr>`;
+  const ex=document.getElementById('exequente').value||'a parte exequente';
+  let html=`<div class="linha"><span>Principal corrigido</span><b>R$ ${fmt(R.tCorr)}</b></div>
+    <div class="linha"><span>Selic acumulada</span><b>R$ ${fmt(R.tSelic)}</b></div>
+    <div class="linha"><span>Total devido a ${ex}</span><b>R$ ${fmt(R.tGeral)}</b></div>`;
+  if(R.hc) html+=`<div class="linha"><span>Destaque honorários contratuais (${fmt(hcPct)}%)</span><b>R$ ${fmt(R.hc.total)}</b></div>
+    <div class="linha"><span>Líquido para ${ex}</span><b>R$ ${fmt(R.liquido.total)}</b></div>`;
+  if(R.hs) html+=`<div class="linha"><span>Honorários sucumbenciais (${fmt(hsPct)}% × R$ ${fmt(R.tGeral)})</span><b>R$ ${fmt(R.hs.total)}</b></div>`;
+  html+=`<div class="linha destaque"><span>TOTAL DA CONTA em ${mesBR(db)}</span><span>R$ ${fmt(R.totalConta)}</span></div>`;
+  document.getElementById('resumo').innerHTML=html;
+  document.getElementById('memorias').innerHTML = R.rows.map((r,i)=>{
+    let s='';
+    if(r.detC.length) s+=`<p><b>Correção IPCA-E (composto), ${mesBR(r.comp)} a 11/2021 → coef. ${fmtC(r.coef)}:</b></p>
+      <div class="memoria">${r.detC.map(([m,v])=>`${mesBR(m)}: ${fmt(v)}%`).join('<br>')}</div>`;
+    s+=`<p style="margin-top:6px"><b>Selic (soma simples), ${mesBR(r.detS[0][0])} a ${mesBR(r.detS[r.detS.length-1][0])} → ${fmt(r.selicPct)}%:</b></p>
+      <div class="memoria">${r.detS.map(([m,v])=>`${mesBR(m)}: ${fmt(v)}%`).join('<br>')}</div>`;
+    return `<details><summary>Memória mês a mês — parcela ${i+1} (${mesBR(r.comp)})</summary>${s}</details>`;
+  }).join('');
+  document.getElementById('criterios').innerHTML =
+    `<b>Critérios e parâmetros do cálculo.</b> Correção monetária pelo IPCA-E (IPCA-15/IBGE, série SGS-BACEN nº 7478), de forma composta, do vencimento de cada parcela até 11/2021 (RE 870.947/SE — Tema 810/STF; sentença/acórdão). A partir de 12/2021, incidência única da taxa Selic (série SGS-BACEN nº 4390), acumulada por soma simples, do vencimento (ou de 12/2021, se anterior) até o mês anterior à data-base, nos termos do art. 3º da EC nº 113/2021 e do Manual de Cálculos da Justiça Federal (ed. 2022). Juros de mora anteriores a 12/2021: não incidentes no caso (citação posterior). Metodologia idêntica à do ProjefWeb (JFRS), conferida centavo a centavo contra cálculos homologados. Índices obtidos da API pública do Banco Central do Brasil.`;
+}
+function importarJSON(){
+  const msg=document.getElementById('msgImport'); msg.textContent='';
+  try{
+    const d=JSON.parse(document.getElementById('jsonBox').value);
+    if(!d.parcelas||!d.parcelas.length) throw new Error('bloco sem parcelas');
+    if(!d.dataBase) throw new Error('bloco sem dataBase');
+    document.getElementById('proc').value=d.processo||'';
+    document.getElementById('exequente').value=d.exequente||'';
+    document.getElementById('executado').value=d.executado||'MUNICÍPIO DE JOÃO CÂMARA';
+    document.getElementById('database').value=d.dataBase;
+    document.getElementById('honC').value=d.honContratuais!=null?String(d.honContratuais).replace('.',','):'0';
+    document.getElementById('honS').value=d.honSucumbencia!=null?String(d.honSucumbencia).replace('.',','):'0';
+    document.getElementById('parcelasBody').innerHTML='';
+    d.parcelas.forEach(p=>addParcela(p.comp, p.desc||'', fmt(Number(p.valor))));
+    calcularUI();
+  }catch(e){ msg.textContent='Falha na importação: '+e.message; }
+}
+function exportarJSON(){
+  const parcelas=[...document.querySelectorAll('#parcelasBody tr')].map(tr=>({
+    comp:tr.querySelector('.pComp').value, desc:tr.querySelector('.pDesc').value,
+    valor:parseBR(tr.querySelector('.pVal').value)})).filter(p=>p.comp&&p.valor>0);
+  document.getElementById('jsonBox').value=JSON.stringify({
+    processo:document.getElementById('proc').value, exequente:document.getElementById('exequente').value,
+    executado:document.getElementById('executado').value, dataBase:document.getElementById('database').value,
+    honContratuais:parseBR(document.getElementById('honC').value), honSucumbencia:parseBR(document.getElementById('honS').value),
+    parcelas},null,1);
+}
+function limparTudo(){
+  ['proc','exequente','jsonBox'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('executado').value='MUNICÍPIO DE JOÃO CÂMARA';
+  document.getElementById('database').value=''; document.getElementById('honC').value='30'; document.getElementById('honS').value='0';
+  document.getElementById('parcelasBody').innerHTML=''; addParcela();
+  document.getElementById('resultado').style.display='none'; document.getElementById('msgImport').textContent='';
+}
+async function atualizarSelic(){
+  const el=document.getElementById('atualizacao');
+  el.textContent=' buscando…';
+  try{
+    const r=await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.4390/dados?formato=json&dataInicial=01/12/2021');
+    const j=await r.json();
+    j.forEach(o=>{const [d,m,y]=o.data.split('/'); SELIC[y+'-'+m]=parseFloat(o.valor);});
+    cobertura(); el.textContent=' ✓ atualizado ('+new Date().toLocaleDateString('pt-BR')+')';
+    autoteste();
+  }catch(e){ el.textContent=' falhou — verifique a conexão ('+e.message+')'; }
+}
+function cobertura(){
+  const ms=Object.keys(SELIC).sort();
+  document.getElementById('cobertura').textContent='12/2021 a '+mesBR(ms[ms.length-1]);
+}
+
+// ================== MODO IA ==================
+let arquivosPDF = [];
+const LIMITE_TEXTO = 180000;   // caracteres de texto enviados
+const LIMITE_IMAGENS = 15;     // páginas escaneadas convertidas em imagem
+const MIN_CHARS_PAGINA = 60;   // abaixo disso a página é tratada como escaneada
+
+function arquivosEscolhidos(files){
+  arquivosPDF = [...files].filter(f=>f.type==='application/pdf'||f.name.toLowerCase().endsWith('.pdf'));
+  document.getElementById('listaArquivos').textContent = arquivosPDF.length
+    ? 'Selecionado(s): '+arquivosPDF.map(f=>f.name+' ('+(f.size/1048576).toFixed(1)+' MB)').join(' · ')
+    : 'Nenhum PDF selecionado.';
+  document.getElementById('btnExtrair').disabled = !arquivosPDF.length;
+}
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e=>{e.preventDefault(); dz.classList.add('arrastando');});
+dz.addEventListener('dragleave', ()=>dz.classList.remove('arrastando'));
+dz.addEventListener('drop', e=>{e.preventDefault(); dz.classList.remove('arrastando'); arquivosEscolhidos(e.dataTransfer.files);});
+
+function statusIA(msg){ const el=document.getElementById('statusIA'); el.style.display='block'; el.innerHTML=msg; }
+
+async function lerPDFs(){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  let texto = '', imagens = [], totalPags = 0, pagsEscaneadas = 0;
+  for (const f of arquivosPDF){
+    const buf = await f.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+    totalPags += pdf.numPages;
+    texto += '\n\n===== ARQUIVO: '+f.name+' ('+pdf.numPages+' páginas) =====\n';
+    for (let i=1; i<=pdf.numPages; i++){
+      const pg = await pdf.getPage(i);
+      const tc = await pg.getTextContent();
+      const t = tc.items.map(it=>it.str).join(' ').replace(/\s+/g,' ').trim();
+      if (t.length >= MIN_CHARS_PAGINA){
+        texto += '\n[[Pág. '+i+']] '+t;
+      } else {
+        pagsEscaneadas++;
+        if (imagens.length < LIMITE_IMAGENS){
+          const vp = pg.getViewport({scale: 1200/pg.getViewport({scale:1}).width});
+          const cv = document.createElement('canvas');
+          cv.width = vp.width; cv.height = vp.height;
+          await pg.render({canvasContext: cv.getContext('2d'), viewport: vp}).promise;
+          imagens.push({nome:f.name, pag:i, b64: cv.toDataURL('image/jpeg',0.8).split(',')[1]});
+          texto += '\n[[Pág. '+i+' — escaneada, enviada como imagem]]';
+        } else {
+          texto += '\n[[Pág. '+i+' — escaneada, NÃO enviada (limite de imagens atingido)]]';
+        }
+      }
+      statusIA('Lendo PDFs no seu computador… página '+i+'/'+pdf.numPages+' de '+f.name);
+    }
+  }
+  let truncado = false;
+  if (texto.length > LIMITE_TEXTO){ texto = texto.slice(0, LIMITE_TEXTO); truncado = true; }
+  return {texto, imagens, totalPags, pagsEscaneadas, truncado};
+}
+
+function promptExtracao(hoje){
+  return 'Você é assistente de cálculo judicial de um escritório de advocacia brasileiro (cumprimento de sentença contra a Fazenda Pública municipal — servidores/comissionados/contratados). Analise os autos fornecidos (texto extraído do PJe e eventuais páginas escaneadas como imagem) e monte o bloco de dados da calculadora.\n\n'+
+  'REGRAS DE EXTRAÇÃO:\n'+
+  '1. O título executivo (sentença + acórdão + decisão de embargos, o que for mais recente) comanda TUDO. Extraia somente verbas expressamente deferidas nele.\n'+
+  '2. Verbas e competências:\n'+
+  '   - Férias + 1/3: parcela = salário da época × 4/3 × (meses do período aquisitivo ÷ 12); competência = mês do FIM do período aquisitivo.\n'+
+  '   - 13º salário: parcela = salário × (meses ÷ 12); competência = dezembro do ano ou mês da rescisão. Só incluir se constar do título.\n'+
+  '   - FGTS: 8% da remuneração de cada mês; uma parcela por competência. Só se constar do título.\n'+
+  '   - Restituição de ISS: valor retido em cada mês; uma parcela por competência. Só se constar do título.\n'+
+  '3. Salários: procure nas fichas financeiras/contracheques (inclusive nas imagens). Se o processo indicar o salário na inicial ou no título, use-o. Se o salário variou, use o salário da época de cada parcela.\n'+
+  '4. Honorários sucumbenciais: só se fixados no título (percentual expresso). Contratuais: 30 por cento (padrão do escritório), salvo indicação diversa nos autos.\n'+
+  '5. dataBase = "'+hoje+'" (mês corrente).\n'+
+  '6. Respeite prescrição/limitações reconhecidas no título.\n'+
+  '7. Valores com 2 casas decimais, ponto como separador decimal.\n\n'+
+  'RESPONDA APENAS com um JSON válido, sem markdown, neste formato exato:\n'+
+  '{"processo":"...","exequente":"...","executado":"...","dataBase":"'+hoje+'","honContratuais":30,"honSucumbencia":0,\n'+
+  '"parcelas":[{"comp":"AAAA-MM","desc":"...","valor":0.00}],\n'+
+  '"salariosIdentificados":[{"periodo":"...","valor":0.00,"fonte":"..."}],\n'+
+  '"alertas":["liste aqui TODA ambiguidade, dado ausente, conflito entre documentos, verba pedida mas não deferida, página ilegível, ou decisão que você tomou por inferência"]}';
+}
+
+async function extrair(){
+  const key = document.getElementById('apiKey').value.trim();
+  if (!key){ alert('Informe sua chave de API Anthropic.'); return; }
+  localStorage.setItem('anthropic_key', key);
+  const modelo = document.getElementById('modelo').value;
+  localStorage.setItem('modelo_ia', modelo);
+  const btn = document.getElementById('btnExtrair'); btn.disabled = true;
+  document.getElementById('alertasIA').style.display='none';
+  try{
+    const {texto, imagens, totalPags, pagsEscaneadas, truncado} = await lerPDFs();
+    statusIA('Leitura concluída: '+totalPags+' páginas ('+pagsEscaneadas+' escaneadas, '+imagens.length+' enviadas como imagem'+(truncado?', texto truncado por tamanho':'')+').<br>Enviando para a IA ('+modelo+')…');
+    const hoje = new Date().toISOString().slice(0,7);
+    const content = [];
+    for (const im of imagens) content.push({type:'image', source:{type:'base64', media_type:'image/jpeg', data:im.b64}});
+    content.push({type:'text', text:'AUTOS DO PROCESSO (texto extraído):\n'+texto});
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','content-type':'application/json'},
+      body: JSON.stringify({model:modelo, max_tokens:8000, system:promptExtracao(hoje), messages:[{role:'user', content}]})
+    });
+    if (!resp.ok){
+      const e = await resp.json().catch(()=>({}));
+      throw new Error('API retornou '+resp.status+': '+(e.error&&e.error.message||'verifique a chave e o saldo'));
+    }
+    const j = await resp.json();
+    const raw = j.content.map(c=>c.text||'').join('');
+    const ini = raw.indexOf('{'), fim = raw.lastIndexOf('}');
+    if (ini<0||fim<0) throw new Error('A IA não retornou um bloco JSON. Resposta: '+raw.slice(0,300));
+    const dados = JSON.parse(raw.slice(ini, fim+1));
+    document.getElementById('jsonBox').value = JSON.stringify(dados, null, 1);
+    importarJSON();
+    const uso = j.usage ? ' · Tokens: '+j.usage.input_tokens.toLocaleString('pt-BR')+' entrada / '+j.usage.output_tokens.toLocaleString('pt-BR')+' saída' : '';
+    statusIA('✓ Extração concluída e cálculo executado. <b>Confira o demonstrativo abaixo antes de protocolar.</b>'+uso);
+    const al = document.getElementById('alertasIA');
+    const itens = (dados.alertas||[]).concat((dados.salariosIdentificados||[]).map(s=>'Salário identificado: '+s.periodo+' → R$ '+fmt(Number(s.valor))+' ('+(s.fonte||'')+')'));
+    if (itens.length){ al.style.display='block'; al.innerHTML='<b>Observações da extração:</b><ul>'+itens.map(a=>'<li>'+a+'</li>').join('')+'</ul>'; }
+  }catch(e){
+    statusIA('<span style="color:var(--erro)">Falha: '+e.message+'</span>');
+  }finally{ btn.disabled = !arquivosPDF.length; }
+}
+
+// ================== INICIALIZAÇÃO ==================
+document.getElementById('apiKey').value = localStorage.getItem('anthropic_key')||'';
+const modeloSalvo = localStorage.getItem('modelo_ia'); if (modeloSalvo) document.getElementById('modelo').value = modeloSalvo;
+if (!document.getElementById('database').value) document.getElementById('database').value = new Date().toISOString().slice(0,7);
+cobertura(); autoteste(); addParcela();
+</script>
+</body>
+</html>
